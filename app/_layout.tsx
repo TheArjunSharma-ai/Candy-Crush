@@ -9,6 +9,7 @@ import "react-native-reanimated";
 
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { SoundProvider } from "./candy-crush/SoundContext";
+import { LevelProvider } from "./candy-crush/component/storage/LevelContext";
 
 export const unstable_settings = {
   anchor: "(tabs)",
@@ -18,6 +19,7 @@ export default function RootLayout() {
   const colorScheme = useColorScheme();
 
   return (
+    <LevelProvider>
     <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
       <SoundProvider>
         <Stack>
@@ -30,5 +32,6 @@ export default function RootLayout() {
         <StatusBar style="auto" />
       </SoundProvider>
     </ThemeProvider>
+    </LevelProvider>
   );
 }

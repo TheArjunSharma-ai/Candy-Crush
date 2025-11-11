@@ -4,7 +4,7 @@ import { Dimensions, FlatList, Text, View } from 'react-native';
 const CodeCssList = () => {
   const [rows, setRows] = useState<string[][]>([]);
   const [current, setCurrent] = useState(0);
-  const difference = 30;
+  const difference = 10;
 
   // Calculate item width based on screen width and number of items per row
   const screenWidth = Dimensions.get('window').width;
@@ -20,7 +20,7 @@ const CodeCssList = () => {
       }
       setRows(prev => [...prev, newRow]);
       setCurrent(prev => prev + difference);
-    }, 100);
+    }, 10);
 
     return () => clearInterval(interval);
   }, [current]);

@@ -19,7 +19,7 @@ export default function TabLayout() {
       }}
     >
       <Tabs.Screen
-      name="HomeScreen"
+      name="index"
       options={{
         title: "HomeScreen",
     tabBarIcon: ({ color }) => (
@@ -37,15 +37,6 @@ export default function TabLayout() {
         {String.fromCharCode(2384)}
       </Text>
     ),
-      }}
-      />
-      <Tabs.Screen
-      name="index"
-      options={{
-        title: "Home",
-        tabBarIcon: ({ color }) => (
-        <IconSymbol size={28} name="house.fill" color={color} />
-        ),
       }}
       />
       <Tabs.Screen
