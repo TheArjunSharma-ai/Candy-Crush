@@ -20,6 +20,7 @@ const soundPaths: Record<string, any> = {
   candy_clear: require("../../assets/sounds/candy_clear.mp3"),
   bg: require("../../assets/sounds/bg.mp3"),
   cheer: require("../../assets/sounds/cheer.mp3"),
+  candy_cross: require("../../assets/sounds/candy_cross.mp3"),
   // click: require("../../assets/sounds/click.mp3"),
   // crush: require("../../assets/sounds/crush.mp3"),
   // background: require("../../assets/sounds/background.mp3"),

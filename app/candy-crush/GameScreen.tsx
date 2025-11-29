@@ -1,5 +1,5 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   ImageBackground,
   Modal,
@@ -8,53 +8,79 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+
 import GameHeader from "./component/Game/GameHeader";
 import GameTile from "./component/Game/GameTile";
-import { CandyKey, getGameLevel } from "./component/storage/gameLevels";
+
+import {
+  getGameLevel,
+  TileCandyKey,
+  TileMove,
+  TileTime,
+} from "./component/storage/gameLevels";
+
 import { useLevelActions } from "./component/storage/LevelContext";
 import { screenHeight, screenWidth } from "./component/ui/Footer";
 import { useSound } from "./SoundContext";
 
 const GameScreen = () => {
-  const { id } = useLocalSearchParams<{ id: string }>(); // ✅ works for /GameScreen?id=2
+  const { id } = useLocalSearchParams<{ id: string }>();
   const levelId = Number(id) || 1;
 
-  const router = useRouter(); // ✅ correct navigation handler
+  const router = useRouter();
   const { completeLevel, unlockLevel } = useLevelActions();
   const { playSound } = useSound();
 
-  const [gridData, setGridData] = useState<(CandyKey | null)[][]>([]);
-  const [totalCount, setTotalCount] = useState(0);
-  const [moves, setMoves] = useState(20);
-  const [timer, setTimer] = useState(60000);
-  const [collectedCandies, setCollectedCandies] = useState<number>(0);
-  const [target, setTarget] = useState(30);
+  // ---------- GAME STATE ----------
+  const [gridData, setGridData] = useState<TileCandyKey>([]);
+  const [moves, setMoves] = useState<TileMove>(null);
+  const [timer, setTimer] = useState<TileTime>(null);
+  const [collectedCandies, setCollectedCandies] = useState(0);
+  const [target, setTarget] = useState(0);
+
   const [showResult, setShowResult] = useState(false);
   const [levelComplete, setLevelComplete] = useState(false);
   const [gameEnded, setGameEnded] = useState(false);
 
-  // ✅ Load level when route param changes
-  useEffect(() => {
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  /****************************************************
+   *  LOAD LEVEL WHEN CHANGED
+   ****************************************************/
+  const loadLevel = () => {
     const level = getGameLevel(levelId);
-    if (level) {
-      setGridData(level.grid);
-      setMoves(level.moves);
-      setTimer(level.timer || 60000);
-      setTarget(level.target);
-      setCollectedCandies(0);
-      setGameEnded(false);
-      setShowResult(false);
-    }
+    if (!level) return;
+
+    setGridData(level.grid);
+    setMoves(level.moves ?? null);
+    setTimer(level.timer ?? null);
+    setTarget(level.target);
+
+    setCollectedCandies(0);
+    setGameEnded(false);
+    setShowResult(false);
+
+    if (timerRef.current) clearInterval(timerRef.current);
+  };
+
+  useEffect(() => {
+    loadLevel();
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
   }, [levelId]);
 
-  // ✅ Countdown Timer
+  /****************************************************
+   *  TIMER MODE
+   ****************************************************/
   useEffect(() => {
+    if (timer === null) return; // moves-mode (no timer)
     if (timer <= 0 || gameEnded) return;
 
-    const interval = setInterval(() => {
+    timerRef.current = setInterval(() => {
       setTimer((prev) => {
-        if (prev <= 1000) {
-          clearInterval(interval);
+        if (!prev || prev <= 1000) {
+          clearInterval(timerRef.current!);
           setGameEnded(true);
           return 0;
         }
@@ -62,23 +88,30 @@ const GameScreen = () => {
       });
     }, 1000);
 
-    return () => clearInterval(interval);
+    return () => clearInterval(timerRef.current!);
   }, [timer, gameEnded]);
 
-  // ✅ End game logic
+  /****************************************************
+   *  MOVES MODE
+   ****************************************************/
+  useEffect(() => {
+    if (moves !== null && moves <= 0 && !gameEnded) {
+      setGameEnded(true);
+    }
+  }, [moves]);
+
+  /****************************************************
+   *  END GAME
+   ****************************************************/
   useEffect(() => {
     if (gameEnded) handleEndGame();
   }, [gameEnded]);
 
-  useEffect(() => {
-    if (moves <= 0 && !gameEnded) setGameEnded(true);
-  }, [moves]);
-
   const handleEndGame = () => {
     const isTargetAchieved = collectedCandies >= target;
 
-    setShowResult(true);
     setLevelComplete(isTargetAchieved);
+    setShowResult(true);
 
     if (isTargetAchieved) {
       playSound("levelComplete");
@@ -89,50 +122,65 @@ const GameScreen = () => {
     }
   };
 
+  /****************************************************
+   *  RESTART & NEXT LEVEL
+   ****************************************************/
   const handleRestart = () => {
-    setShowResult(false);
     router.replace(`/candy-crush/GameScreen?id=${levelId}`);
   };
 
   const handleNextLevel = () => {
-    setShowResult(false);
-    router.replace(`/candy-crush/GameScreen?id=${levelId + 1}`); // ✅ works now
+    router.replace(`/candy-crush/GameScreen?id=${levelId + 1}`);
   };
-
+  const handleMoves = (value:any)=>{
+    if(value && moves !== null){
+      const move = parseInt(value+'');
+      if(!isNaN(move)){
+        setMoves((prev)=>{
+          if(prev === null ) return prev;
+          return prev + move;
+        })
+      }
+    }
+  }
+  /****************************************************
+   *  UI RENDER
+   ****************************************************/
   return (
     <ImageBackground
       style={{ width: screenWidth, height: screenHeight }}
       source={require("../../assets/images/b1.png")}
     >
+      {/** HEADER */}
       <GameHeader
-        totalCount={totalCount}
+        totalCount={target}
         collectedCandies={collectedCandies}
-        timer={timer}
-        moves={moves}
+        timer={timer ?? -1}
+        moves={moves ?? -1}
       />
 
-      {gridData && !showResult && (
+      {/** GAME BOARD */}
+      {!showResult && gridData.length > 0 && (
         <GameTile
           data={gridData}
           setData={setGridData}
           setCollectedCandies={setCollectedCandies}
-          setMoves={setMoves}
+          setMoves={handleMoves}
         />
       )}
 
-      <Text style={styles.timerText}>⏳ {timer / 1000}s left</Text>
-      <Text style={styles.movesText}>🎮 Moves left: {moves}</Text>
-
-      {/* ✅ Result Popup */}
+      {/** RESULT POPUP */}
       <Modal visible={showResult} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={styles.modalBox}>
             <Text style={styles.modalTitle}>
               {levelComplete ? "🎉 Level Complete!" : "💀 Game Over!"}
             </Text>
+
             <Text style={styles.modalText}>
-              You collected {collectedCandies} candies
+              You collected {collectedCandies}
             </Text>
+
             <Text style={styles.modalText}>Target: {target}</Text>
 
             <TouchableOpacity
@@ -166,18 +214,10 @@ const GameScreen = () => {
 
 export default GameScreen;
 
+/****************************************************
+ *  STYLES
+ ****************************************************/
 const styles = StyleSheet.create({
-  timerText: {
-    fontSize: 22,
-    color: "white",
-    textAlign: "center",
-    marginTop: 10,
-  },
-  movesText: {
-    fontSize: 20,
-    color: "#ffcc00",
-    textAlign: "center",
-  },
   modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.7)",

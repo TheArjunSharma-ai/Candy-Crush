@@ -1,258 +1,202 @@
 import { useEffect, useRef } from "react";
-import { Animated, Easing, InteractionManager } from "react-native";
+import { Animated } from "react-native";
 import {
-    PanGestureHandlerGestureEvent,
-    State,
+  PanGestureHandlerGestureEvent,
+  State,
 } from "react-native-gesture-handler";
+
 import { useSound } from "../../SoundContext";
-import { CandyKey } from "../storage/gameLevels";
-import { AnimateClearMatches } from "./AnimatedClearMatches";
-import { AnimateFillRandomCandies } from "./AnimateFillRandomCandies";
-import { AnimateShiftDown } from "./AnimateShiftDown";
-import { AnimateShuffleAndClear } from "./AnimateSuffleAndClear";
-import { checkForMatches, hasPossibleMoves } from "./gridUtils";
+import { TileCandyKey, TileMove } from "../storage/gameLevels";
 
-type Direction = "up" | "down" | "left" | "right";
+// Gameplay actions
+import {
+  AnimateClearMatches,
+  AnimatedGrid,
+  AnimateFillRandomCandies,
+  AnimateShiftDown,
+  AnimateShuffleAndClear,
+  animateSwap,
+  applySpecialCandy,
+  detectSpecialCandy,
+  Direction,
+  findAllMatches,
+  hasPossibleMoves,
+} from "./animations";
 
+// -----------------------------------------------------------------------------
+// Helpers
+// -----------------------------------------------------------------------------
+const isInsideGrid = (row: number, col: number, grid: TileCandyKey) =>
+  row >= 0 && col >= 0 && row < grid.length && col < grid[0].length;
+
+const cloneGrid = (g: TileCandyKey): TileCandyKey => g.map((row) => [...row]);
+
+// -----------------------------------------------------------------------------
+// Hook
+// -----------------------------------------------------------------------------
 interface GameLogicProps {
-  data: (CandyKey | null)[][];
-  setData: (data: (CandyKey | null)[][]) => void;
+  data: TileCandyKey;
+  setData: (data: TileCandyKey) => void;
 }
 
-/**
- * Helper: returns a Promise for an Animated sequence
- */
-const runAnimation = (animation: Animated.CompositeAnimation) =>
-  new Promise((resolve) => animation.start(() => resolve(true)));
-
-/**
- * Handles gesture-based swapping + animations for Candy Crush–style grid
- */
 const useGameLogic = ({ data, setData }: GameLogicProps) => {
   const { playSound } = useSound();
+  const animatedValues = useRef<AnimatedGrid>([]);
 
-  // Animated refs grid
-  const animatedValues = useRef<
-    ({
-      x: Animated.Value;
-      y: Animated.Value;
-      scale: Animated.Value;
-      opacity: Animated.Value;
-    } | null)[][]
-  >([]);
-
-  // Sync animation refs with grid shape
+  // ---------------------------------------------------------
+  // ⚡ Sync animated grid with tile count (but preserve refs)
+  // ---------------------------------------------------------
   useEffect(() => {
-    if (!data || data.length === 0) return;
+    if (!data?.length) return;
 
-    animatedValues.current = data.map((row, rIdx) =>
-      row.map((tile, cIdx) => {
-        const existing = animatedValues.current?.[rIdx]?.[cIdx];
+    animatedValues.current = data.map((row, r) =>
+      row.map((tile, c) => {
+        const existing = animatedValues.current?.[r]?.[c];
         if (existing) return existing;
-        return tile === null
-          ? null
-          : {
-              x: new Animated.Value(0),
-              y: new Animated.Value(0),
-              scale: new Animated.Value(1),
-              opacity: new Animated.Value(1),
-            };
+
+        if (tile === null) return null;
+
+        return {
+          x: new Animated.Value(0),
+          y: new Animated.Value(0),
+          scale: new Animated.Value(1),
+          opacity: new Animated.Value(1),
+        };
       })
     );
   }, [data]);
 
-  /**
-   * Animate swap movement between two tiles
-   */
-  const animateSwap = async (
-    source: { x: Animated.Value; y: Animated.Value },
-    target: { x: Animated.Value; y: Animated.Value },
-    direction: Direction
-  ) => {
-    const distance = 40; // pixel offset per swipe
-    const duration = 100;
-    const dx =
-      direction === "left" ? -distance : direction === "right" ? distance : 0;
-    const dy =
-      direction === "up" ? -distance : direction === "down" ? distance : 0;
-
-    const forward = Animated.parallel([
-      Animated.timing(source.x, {
-        toValue: dx,
-        duration,
-        easing: Easing.out(Easing.quad),
-        useNativeDriver: true,
-      }),
-      Animated.timing(source.y, {
-        toValue: dy,
-        duration,
-        easing: Easing.out(Easing.quad),
-        useNativeDriver: true,
-      }),
-      Animated.timing(target.x, {
-        toValue: -dx,
-        duration,
-        easing: Easing.out(Easing.quad),
-        useNativeDriver: true,
-      }),
-      Animated.timing(target.y, {
-        toValue: -dy,
-        duration,
-        easing: Easing.out(Easing.quad),
-        useNativeDriver: true,
-      }),
-    ]);
-
-    const back = Animated.parallel([
-      Animated.timing(source.x, {
-        toValue: 0,
-        duration,
-        easing: Easing.in(Easing.quad),
-        useNativeDriver: true,
-      }),
-      Animated.timing(source.y, {
-        toValue: 0,
-        duration,
-        easing: Easing.in(Easing.quad),
-        useNativeDriver: true,
-      }),
-      Animated.timing(target.x, {
-        toValue: 0,
-        duration,
-        easing: Easing.in(Easing.quad),
-        useNativeDriver: true,
-      }),
-      Animated.timing(target.y, {
-        toValue: 0,
-        duration,
-        easing: Easing.in(Easing.quad),
-        useNativeDriver: true,
-      }),
-    ]);
-
-    await runAnimation(Animated.sequence([forward, back]));
-  };
-
-  /**
-   * Swap tiles + trigger match / clear animations
-   */
+  // ---------------------------------------------------------------------------
+  // 🌀 Perform swap → detect matches → clear → drop → refill
+  // ---------------------------------------------------------------------------
   const handleSwipe = async (
-    rowIndex: number,
-    colIndex: number,
+    r: number,
+    c: number,
     direction: Direction,
-    setMoves: React.Dispatch<React.SetStateAction<number>>,
+    setMoves: React.Dispatch<React.SetStateAction<TileMove>>,
     setCollectedCandies: React.Dispatch<React.SetStateAction<number>>
   ) => {
-    const targetRow =
-      direction === "up"
-        ? rowIndex - 1
-        : direction === "down"
-        ? rowIndex + 1
-        : rowIndex;
-    const targetCol =
-      direction === "left"
-        ? colIndex - 1
-        : direction === "right"
-        ? colIndex + 1
-        : colIndex;
+    const delta = {
+      up: [-1, 0],
+      down: [1, 0],
+      left: [0, -1],
+      right: [0, 1],
+    }[direction];
 
-    if (
-      targetRow < 0 ||
-      targetCol < 0 ||
-      targetRow >= data.length ||
-      targetCol >= (data[0]?.length ?? 0)
-    )
-      return;
+    const tRow = r + delta[0];
+    const tCol = c + delta[1];
 
-    const sourceAnim = animatedValues.current[rowIndex]?.[colIndex];
-    const targetAnim = animatedValues.current[targetRow]?.[targetCol];
-    if (!sourceAnim || !targetAnim) return;
+    if (!isInsideGrid(tRow, tCol, data)) return;
+
+    const srcAnim = animatedValues.current[r]?.[c];
+    const dstAnim = animatedValues.current[tRow]?.[tCol];
+
+    if (!srcAnim || !dstAnim) return;
 
     playSound?.("candy_shuffle");
 
-    // animate visual swap
-    await animateSwap(sourceAnim, targetAnim, direction);
+    // Visual animation first
+    await animateSwap(srcAnim, dstAnim, direction);
 
-    // perform logical swap
-    const newGrid = data.map((row) => [...row]);
-    [newGrid[rowIndex][colIndex], newGrid[targetRow][targetCol]] = [
-      newGrid[targetRow][targetCol],
-      newGrid[rowIndex][colIndex],
-    ];
+    // Logical swap
+    let grid = cloneGrid(data);
+    [grid[r][c], grid[tRow][tCol]] = [grid[tRow][tCol], grid[r][c]];
 
-    // check and clear matches
-    let matches = await checkForMatches(newGrid);
+    let matches = await findAllMatches(grid);
+
     if (!matches.length) {
-      // revert if no match
-      playSound?.("candy_clear");
+      // No match → revert
+      playSound?.("candy_cross");
       return setData(data);
     }
 
-    playSound?.("candy_clear");
-
-    let totalCleared = 0;
-    let grid = newGrid;
-    // Set new grid immediately so UI updates fast
+    // Immediate UI update
     setData(grid);
 
-    InteractionManager.runAfterInteractions(async () => {
-      while (matches.length > 0) {
-        totalCleared += matches.length;
+    let totalCleared = 0;
 
-        grid = await AnimateClearMatches(grid, matches, animatedValues.current);
-        grid = await AnimateShiftDown(grid, animatedValues.current);
-        grid = await AnimateFillRandomCandies(grid, animatedValues.current);
+    // ---------------------------------------------------
+    // Keep clearing matches until none are left
+    // ---------------------------------------------------
+    while (matches.length > 0) {
+      totalCleared += matches.length;
+      const special = detectSpecialCandy(matches);
 
-        matches = await checkForMatches(grid);
-        setData(grid); // Refresh visual
+      // The origin of the new special candy is the tile that was moved
+      const target = { row: tRow, col: tCol };
+      if (special && special) {
+        grid[tRow][tCol] = applySpecialCandy(special);
       }
 
-      // Shuffle if no moves
-      if (!(await hasPossibleMoves(grid))) {
-        const shuffle = await AnimateShuffleAndClear(
-          grid,
-          animatedValues.current
-        );
-        totalCleared += shuffle.clearedMatching;
-        grid = shuffle.grid;
-        setData(grid);
-      }
+      // Clear animations
+      grid = await AnimateClearMatches(
+        grid,
+        matches,
+        animatedValues.current,
+        target
+      );
+      playSound?.("candy_clear");
 
-      setCollectedCandies((prev) => prev + totalCleared);
-      setMoves((prev) => prev - 1);
-    });
+      // Gravity
+      grid = await AnimateShiftDown(grid, animatedValues.current);
+
+      // Fill new candies
+      grid = await AnimateFillRandomCandies(grid, animatedValues.current);
+
+      // Find new matches
+      matches = await findAllMatches(grid);
+
+      setData(grid); // Refresh UI
+    }
+
+    // ---------------------------------------------------
+    // Shuffle if no valid moves exist
+    // ---------------------------------------------------
+    while (!(await hasPossibleMoves(grid))) {
+      const shuffled = await AnimateShuffleAndClear(
+        grid,
+        animatedValues.current
+      );
+      totalCleared += shuffled.clearedMatching;
+      grid = shuffled.grid;
+      setData(grid);
+    }
+
+    // Update score and moves
+    setCollectedCandies((prev) => prev + totalCleared);
+    setMoves(-1);
   };
 
-  /**
-   * Handle gesture
-   */
+  // ---------------------------------------------------------------------------
+  // 🎮 Handle gesture (swipe) input
+  // ---------------------------------------------------------------------------
   const handleGesture = async (
     event: PanGestureHandlerGestureEvent,
-    rowIndex: number,
-    colIndex: number,
+    row: number,
+    col: number,
     state: State,
-    setMoves: React.Dispatch<React.SetStateAction<number>>,
+    setMoves: React.Dispatch<React.SetStateAction<TileMove>>,
     setCollectedCandies: React.Dispatch<React.SetStateAction<number>>
   ) => {
-    const selectedValue = data?.[rowIndex]?.[colIndex];
-    if (selectedValue == null) return;
+    const value = data?.[row]?.[col];
+    if (value == null) return;
 
-    if (state === State.END) {
-      const { translationX, translationY } = event.nativeEvent;
-      const absX = Math.abs(translationX);
-      const absY = Math.abs(translationY);
+    if (state !== State.END) return;
 
-      const dir: Direction =
-        absX > absY
-          ? translationX > 0
-            ? "right"
-            : "left"
-          : translationY > 0
-          ? "down"
-          : "up";
+    const { translationX, translationY } = event.nativeEvent;
+    const x = Math.abs(translationX);
+    const y = Math.abs(translationY);
 
-      await handleSwipe(rowIndex, colIndex, dir, setMoves, setCollectedCandies);
-    }
+    const direction: Direction =
+      x > y
+        ? translationX > 0
+          ? "right"
+          : "left"
+        : translationY > 0
+        ? "down"
+        : "up";
+
+    await handleSwipe(row, col, direction, setMoves, setCollectedCandies);
   };
 
   return {

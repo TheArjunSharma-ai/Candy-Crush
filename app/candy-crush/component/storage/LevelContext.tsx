@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useReducer } from "react";
 import { initialLevelData } from "./gameLevels";
-import { mmkvStorage } from "./storage";
+import storage from "./storage";
 
 export interface Level {
   id: number;
@@ -58,7 +58,7 @@ export const LevelProvider: React.FC<{ children: React.ReactNode }> = ({
   // Load saved progress from MMKV/localStorage
   useEffect(() => {
     try {
-      const saved = mmkvStorage.getItem("candy-crush-levels");
+      const saved = storage.getItem("candy-crush-levels");
       if (saved) {
         const parsed = typeof saved === "string" ? JSON.parse(saved) : saved;
         if (Array.isArray(parsed)) {
@@ -73,7 +73,7 @@ export const LevelProvider: React.FC<{ children: React.ReactNode }> = ({
   // Save progress whenever levels change
   useEffect(() => {
     try {
-      mmkvStorage.setItem("candy-crush-levels", JSON.stringify(levels));
+      storage.setItem("candy-crush-levels", JSON.stringify(levels));
     } catch (error) {
       console.warn("⚠️ Failed to save levels:", error);
     }
