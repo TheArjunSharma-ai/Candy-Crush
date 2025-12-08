@@ -6,8 +6,7 @@ import { AnimatedGrid, MatchCell } from "./Types";
 export const AnimateClearMatches = async (
   grid: TileCandyKey,
   matches: MatchCell[],
-  animGrid: AnimatedGrid,
-  target: { row: number; col: number } | null
+  animGrid: AnimatedGrid
 ): Promise<TileCandyKey> => {
 
   if (!matches.length) return grid;
@@ -15,9 +14,7 @@ export const AnimateClearMatches = async (
    // ----------------------------------------
   // Step 1 — Special candy effect
   // ----------------------------------------
-  if (target) {
-    await spacialApply(grid,matches, animGrid, target);
-  }
+  await spacialApply(grid,matches, animGrid);
 
   // ----------------------------------------
   // Step 2 — Fade + pop animation for all matched tiles
@@ -54,6 +51,8 @@ export const AnimateClearMatches = async (
   const newGrid: TileCandyKey = grid.map((row) => [...row]);
 
   for (const m of matches) {
+    const prev = newGrid[m.row][m.col];
+    if(prev && prev > 10) continue;
     newGrid[m.row][m.col] = 0; // cleared tile
   }
 
@@ -74,39 +73,54 @@ const inRange = (v: number, min: number, max: number) =>
   v >= min && v <= max;
 
 export const spacialApply = async (
-  grid:TileCandyKey,
+  grid: TileCandyKey,
   matches: MatchCell[],
-  animatedValues: AnimatedGrid,
-  target: { row: number; col: number }
+  animatedValues: AnimatedGrid
 ) => {
   if (!matches.length) return;
 
-  for (const { row, col, value } of matches) {
-    if (value == null) continue; // FIXED: don't stop entire function
+  for (let { row, col, value } of matches) {
+    if (value == null || value === 0) continue; // skip invalid cells
 
     // FISH candy (21–26)
     if (inRange(value, 21, 26)) {
-      await animateFish(row, col, target,grid, animatedValues);
+      const target = getTarget(grid);
+      await animateFish(row, col, target, grid, animatedValues);
     }
 
     // horizontal line (31–36)
     if (inRange(value, 31, 36)) {
-      await animateLineHorizontal(row,grid, animatedValues);
+      await animateLineHorizontal(row, grid, animatedValues);
     }
 
     // vertical line (41–46)
     if (inRange(value, 41, 46)) {
-      await animateLineVertical(col,grid, animatedValues);
+      await animateLineVertical(col, grid, animatedValues);
     }
 
-    // wrapped (51–56)
+    // wrapped candy (51–56)
     if (inRange(value, 51, 56)) {
-      await animateBomb(row, col, animatedValues);
+      await animateBomb(row, col, animatedValues); // separate animation if needed
     }
 
-    // bomb (61–66)
+    // bomb candy (61–66)
     if (inRange(value, 61, 66)) {
       await animateBomb(row, col, animatedValues);
     }
+    value = 0;
   }
+};
+const getTarget = (grid: TileCandyKey): { row: number; col: number } => {
+  const rows = grid.length;
+  const cols = grid[0].length;
+
+  let targetRow: number;
+  let targetCol: number;
+
+  do {
+    targetRow = Math.floor(Math.random() * rows);
+    targetCol = Math.floor(Math.random() * cols);
+  } while (grid[targetRow][targetCol] === null || grid[targetRow][targetCol] === 0);
+
+  return { row: targetRow, col: targetCol };
 };

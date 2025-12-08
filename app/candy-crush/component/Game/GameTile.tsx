@@ -6,14 +6,14 @@ import {
   State,
 } from "react-native-gesture-handler";
 import useGameLogic from "../GameLogic.tsx/useGameLogic";
-import { CandyKey, TileCandyKey, TileMove } from "../storage/gameLevels";
+import { TileCandyKey } from "../storage/gameLevels";
 import { screenHeight, screenWidth } from "../ui/Footer";
 import AnimatedTile from "./AnimatedTIle"; // ✅ fixed import case
 
 interface GameTileProps {
   data: TileCandyKey;
   setData: (data: TileCandyKey) => void;
-  setMoves: React.Dispatch<React.SetStateAction<TileMove>>;
+  setMoves: React.Dispatch<React.SetStateAction<number>>;
   setCollectedCandies: React.Dispatch<React.SetStateAction<number>>;
 }
 
@@ -38,7 +38,7 @@ const GameTile: React.FC<GameTileProps> = ({
                 }
               }}
             >
-              <View
+              <View data-tile={tile}
                 style={[
                   styles.tile,
                   tile === null ? styles.emptyTile : styles.activeTile,

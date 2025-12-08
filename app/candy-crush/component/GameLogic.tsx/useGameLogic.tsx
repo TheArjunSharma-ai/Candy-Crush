@@ -6,7 +6,7 @@ import {
 } from "react-native-gesture-handler";
 
 import { useSound } from "../../SoundContext";
-import { TileCandyKey, TileMove } from "../storage/gameLevels";
+import { TileCandyKey } from "../storage/gameLevels";
 
 // Gameplay actions
 import {
@@ -73,7 +73,7 @@ const useGameLogic = ({ data, setData }: GameLogicProps) => {
     r: number,
     c: number,
     direction: Direction,
-    setMoves: React.Dispatch<React.SetStateAction<TileMove>>,
+    setMoves: React.Dispatch<React.SetStateAction<number>>,
     setCollectedCandies: React.Dispatch<React.SetStateAction<number>>
   ) => {
     const delta = {
@@ -123,7 +123,6 @@ const useGameLogic = ({ data, setData }: GameLogicProps) => {
       const special = detectSpecialCandy(matches);
 
       // The origin of the new special candy is the tile that was moved
-      const target = { row: tRow, col: tCol };
       if (special && special) {
         grid[tRow][tCol] = applySpecialCandy(special);
       }
@@ -132,8 +131,7 @@ const useGameLogic = ({ data, setData }: GameLogicProps) => {
       grid = await AnimateClearMatches(
         grid,
         matches,
-        animatedValues.current,
-        target
+        animatedValues.current
       );
       playSound?.("candy_clear");
 
@@ -175,7 +173,7 @@ const useGameLogic = ({ data, setData }: GameLogicProps) => {
     row: number,
     col: number,
     state: State,
-    setMoves: React.Dispatch<React.SetStateAction<TileMove>>,
+    setMoves: React.Dispatch<React.SetStateAction<number>>,
     setCollectedCandies: React.Dispatch<React.SetStateAction<number>>
   ) => {
     const value = data?.[row]?.[col];

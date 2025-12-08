@@ -16,5 +16,16 @@ export interface MatchCell {
 }
 
 // Matches a base candy color even if it is a “fish” version (20+ offset)
-export const normalize = (v: number | null) =>
-  v == null ? null : v >= 20 ? v - 20 : v;
+export const normalize = (v: number | null): number | null => {
+  if (v == null) return null;
+
+  // Remove all known special-candy offsets
+  const offsets = [50, 40, 30, 20];
+
+  for (const offset of offsets) {
+    if (v >= offset) return v - offset;
+  }
+
+  return v;
+};
+

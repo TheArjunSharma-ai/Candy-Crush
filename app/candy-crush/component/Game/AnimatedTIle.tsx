@@ -27,7 +27,9 @@ const AnimatedTile: React.FC<AnimatedTileProps> = ({
   if (tile === null) return null; // nothing to show
 
   const anim = animatedValues;
-
+  // if (tile > 50 && tile < 50){
+  //   return <VerticleSVG tile={tile} rowIndex={rowIndex} colIndex={colIndex} color="white"/>
+  // }
   return (
     <Animated.Image
       key={`${rowIndex}-${colIndex}`}

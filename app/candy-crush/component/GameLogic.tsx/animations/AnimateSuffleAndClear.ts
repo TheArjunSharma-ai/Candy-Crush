@@ -1,8 +1,8 @@
 import { Animated } from "react-native";
+import { TileCandyKey } from "../../storage/gameLevels";
 import { AnimatedGrid } from "./Types";
 import { findAllMatches } from './matchUtils';
 import { hasPossibleMoves } from './moveUtils';
-import { TileCandyKey } from "../../storage/gameLevels";
 
 /**
  * Randomizes array (Fisher-Yates)
@@ -11,6 +11,7 @@ const shuffleArray = <T,>(arr: T[]): T[] => {
   const a = [...arr];
   for (let i = a.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
+    if (a[i] === null || a[j] === null) continue;
     [a[i], a[j]] = [a[j], a[i]];
   }
   return a;
@@ -21,14 +22,30 @@ const shuffleArray = <T,>(arr: T[]): T[] => {
  */
 const shuffleGrid = (grid: TileCandyKey): TileCandyKey => {
   const flat = grid.flat();
-  const shuffled = shuffleArray(flat);
+  // Extract candies only (no null)
+  const candies = flat.filter(v => v !== null) as number[];
+  const shuffled = shuffleArray(candies);
 
   const width = grid[0].length;
   const height = grid.length;
 
   const reshaped: TileCandyKey = [];
+  let i = 0;
   for (let r = 0; r < height; r++) {
-    reshaped.push(shuffled.slice(r * width, (r + 1) * width));
+    const row: (number | null)[] = [];
+
+    for (let c = 0; c < width; c++) {
+
+      if (grid[r][c] === null) {
+        // Keep null in its original location
+        row.push(null);
+      } else {
+        // Insert next shuffled candy
+        row.push(shuffled[i++]);
+      }
+    }
+
+    reshaped.push(row);
   }
   return reshaped;
 };
@@ -122,19 +139,6 @@ export const AnimateShuffleAndClear = async (
       // Success → finished shuffle
       break;
     }
-
-    // If matches exist → clear them
-    if (matches.length > 0) {
-      cleared += matches.length;
-
-      // No animations here — normally matches appear instantly only after shuffle
-      // but you can animate if desired.
-      for (const m of matches) newGrid[m.row][m.col] = null;
-
-      // Gravity + refill (these usually exist already in your animation file)
-      // You can wire these in or leave shuffle "cleanup" minimal.
-    }
-
     // If no moves → loop again and reshuffle
   }
 

@@ -47,6 +47,7 @@ export const animateFish = async (
   );
   if (target) {
     changeGrid[target.row][target.col] = 0;
+    changeGrid[row][col] = 0;
   }
 };
 
@@ -66,9 +67,10 @@ export const animateLineHorizontal = async (
     })
   );
 if(changeGrid){
-    for(const m of changeGrid){
-        console.log(m)
-    }
+   const length = changeGrid[row].length;
+  for(let i=0;i<length;i++){
+    changeGrid[row][i] = 0;
+  }
 }
   await new Promise((resolve) =>
     Animated.parallel(animations).start(() => resolve(true))
@@ -88,9 +90,10 @@ export const animateLineVertical = async (col: number,changeGrid:TileCandyKey, g
       })
     );
 if(changeGrid){
-    for(const m of changeGrid){
-        console.log(m)
-    }
+  const length = changeGrid.length;
+  for(let i=0;i<length;i++){
+    changeGrid[i][col] = 0;
+  }
 }
   await new Promise((resolve) =>
     Animated.parallel(animations).start(() => resolve(true))

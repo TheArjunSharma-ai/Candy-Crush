@@ -103,6 +103,7 @@ export const findAllMatches = (
         ...getHorizontalMatches(grid),
         ...getVerticalMatches(grid),
         ...get2x2BlockMatches(grid),
+        ...get3x3BlockmATCCHES(grid)
     ];
 
     // unique

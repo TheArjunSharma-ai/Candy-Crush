@@ -22,43 +22,49 @@ const candyImages: Record<number, any> = {
   26: require(root + "yellowFish.png"),
 
   /** Line Blast Special Candies → 31–36 */
-  31: require(root + "LineRed.svg"),
-  32: require(root + "LineGreen.svg"),
-  33: require(root + "LineBlue.svg"),
-  34: require(root + "LinePurple.svg"),
-  35: require(root + "LineOrange.svg"),
-  36: require(root + "LineYellow.svg"),
+   31: require(root + "redHorizontalLine.png"),
+  32: require(root + "greenHorizontalLine.png"),
+  33: require(root + "blueHorizontalLine.png"),
+  34: require(root + "purpleHorizontalLine.png"),
+  35: require(root + "orangeHorizontalLine.png"),
+  36: require(root + "yellowHorizontalLine.png"),
 
+/** Line Blast Special Candies → 41–46 */
+   41: require(root + "redVerticleLine.png"),
+  42: require(root + "greenVerticleLine.png"),
+  43: require(root + "blueVerticleLine.png"),
+  44: require(root + "purpleVerticleLine.png"),
+  45: require(root + "orangeVerticleLine.png"),
+  46: require(root + "yellowVerticleLine.png"),
   /** Line Blast Special Candies → 31–36 */
-  41: require(root + "Bomb.png"),
-  42: require(root + "Bomb.png"),
-  43: require(root + "Bomb.png"),
-  44: require(root + "Bomb.png"),
-  45: require(root + "Bomb.png"),
-  46: require(root + "Bomb.png"),
+  51: require(root + "redeWrapper.png"),
+  52: require(root + "greenWrapper.png"),
+  53: require(root + "blueWrapper.png"),
+  54: require(root + "purpleWrapper.png"),
+  55: require(root + "orangeWrapper.png"),
+  56: require(root + "YellowWrapper.png"),
 
-  /** Bomb Special Candies → 51–56 */
-//   51: require(root + "redBomb.png"),
-//   52: require(root + "greenBomb.png"),
-//   53: require(root + "blueBomb.png"),
-//   54: require(root + "purpleBomb.png"),
-//   55: require(root + "orangeBomb.png"),
-//   56: require(root + "yellowBomb.png"),
+  /** Bomb Special Candies → 61–66 */
+  61: require(root + "Bomb.png"),
+  62: require(root + "Bomb.png"),
+  63: require(root + "Bomb.png"),
+  64: require(root + "Bomb.png"),
+  65: require(root + "Bomb.png"),
+  66: require(root + "Bomb.png"),
 };
 
 
-export const CandyTypes = [1,2,3,4,5];
+export const CandyTypes = [1,2,3];
 export type CandyKey = keyof typeof candyImages;
 
 // Define a 2D grid type of CandyKey or null
 export type TileCandyKey = (CandyKey | null)[][];
-export type TileMove = number | null;
 export type TileTime = number | null;
 
 interface GameLevel {
     id: number;
     target: number;
-    moves: TileMove;
+    moves: number;
     grid: TileCandyKey; // Corrected type reference
     timer: TileTime ;
 }
@@ -75,13 +81,13 @@ const gameLevels: { [key: string]: GameLevel} = {
         id: 1,
         grid:[
             [null,1,3,1,5,null],
-            [2,4,5,3,2,2],
+            [1,4,5,3,3,1],
             [3,2,1,22,3,2],
-            [1,5,1,3,22,3],
-            [4,3,4,1,4,5],
-            [null,2,5,4,3,null],
+            [1,22,4,4,35,2],
+            [4,3,4,1,1,5],
+            [null,1,5,43,3,null],
         ],
-        moves:9999,
+        moves:0,
         target:100,
         timer:230000,
     },
@@ -109,15 +115,15 @@ const gameLevels: { [key: string]: GameLevel} = {
             [4,3,4,2,1,5],
             [null,2,5,4,3,null],
         ],
-        moves:9999,
+        moves:0,
         target:150,
         timer:300000
     },
     4: {
         id: 4,
         grid:[
-            [null,4,2,5,3,null],
-            [2,4,5,3,2,1],
+            [null,4,5,3,3,null],
+            [2,4,3,1,2,1],
             [3,2,1,4,5,2],
             [1,5,2,3,4,3],
             [4,3,4,2,1,5],
@@ -141,6 +147,18 @@ const gameLevels: { [key: string]: GameLevel} = {
         timer:null,
         target:300,
     },
+    6:{
+        id:6,
+        moves:30,
+        timer:null,
+        target:100,
+        grid:[
+            [null,2,2,5],
+            [null,null,2,1],
+            [null,2,1,null],
+            [1,5,1,null]
+        ]
+    }
 }
 
 export const initialLevelData:Level[] = [
@@ -149,4 +167,5 @@ export const initialLevelData:Level[] = [
     {id:3,unlocked:false,highScore:0,moves:30,completed:false},
     {id:4,unlocked:false,highScore:0,moves:35,completed:false},
     {id:5,unlocked:false,highScore:0,moves:40,completed:false},
+    {id:6,unlocked:false,highScore:0,moves:40,completed:false},
 ]
